@@ -51,8 +51,21 @@ Right now the `eachslice` generator returns an `Array` not a view, and re-uses t
 
 * [LazyStack.jl](https://github.com/mcabbott/LazyStack.jl)
 
-* [SliceMap.jl](https://github.com/mcabbott/SliceMap.jl)
-
-* [tkf/ReduceDims.jl](https://github.com/tkf/ReduceDims.jl) from [JuliaLang/julia#16606](https://github.com/JuliaLang/julia/issues/16606)
+* [SliceMap.jl](https://github.com/mcabbott/SliceMap.jl), differentiable mapslices.
 
 * [JuliaLang/julia#32310](https://github.com/JuliaLang/julia/pull/32310) about `EachSlice` type
+
+* [tkf/ReduceDims.jl](https://github.com/tkf/ReduceDims.jl) from [JuliaLang/julia#16606](https://github.com/JuliaLang/julia/issues/16606). Compare:
+
+```julia
+using ReduceDims, StarSlice
+mat = rand(1:99, 3, 4)
+
+s1 = sum(along(mat, &, :)) # lazy mapreduce along "&" directions
+sum(mat, dims=1) .== s1    # all equal
+sum(mat[*, :]) == sum.(mat[:, *]) == vec(copy(s1))
+
+p1 = prod(along(mat, &, :)) |> copy
+prod(mat, dims=1) == p1
+prod.(mat[:, *]) == vec(p1) # and prod(mat[*, :]) is an error
+```
