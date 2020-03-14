@@ -1,0 +1,23 @@
+name = "StarSlice"
+uuid = "302cefd4-18f1-4451-86ef-77a2b5c4dd42"
+authors = ["Michael Abbott"]
+version = "0.0.1"
+
+[deps]
+Compat = "34da2185-b29b-5c13-b0c7-acf172513d20"
+SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
+UnsafeArrays = "c4a57d5a-5b31-53a6-b365-19f8c011fbd6"
+ZygoteRules = "700de1a5-db45-46bc-99cf-38207098b444"
+
+[compat]
+Compat = "2.2, 3.0"
+UnsafeArrays = "0.3, 0.4, 1.0"
+ZygoteRules = "0.2"
+julia = "1.0"
+
+[extras]
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+Zygote = "e88e6eb3-aa80-5325-afca-941959d7151f"
+
+[targets]
+test = ["Test", "Zygote"]
