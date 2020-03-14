@@ -4,9 +4,11 @@ using StarSlice, Test
 
     A = rand(Int8, 2,3,4)
     @test A[*,:,1] == [A[1,:,1], A[2,:,1]]
+    @test A[&,:,1] == [A[1:1,:,1], A[2:2,:,1]]
     @test A[*,end,:] == [A[1,3,:], A[2,3,:]]
 
     @test size(first(A[1:2,:,*])) == (2,3)
+    @test size(first(A[1:2,:,&])) == (2,3,1)
 
     B = @view A[1,:,*]
     @test size(B) == (4,)
@@ -27,18 +29,30 @@ end
     B = rand(Int8, 4,3,2)
 
     @test (A[:,3,*] .= B[*,1,:]) isa Array
+    @test (A[:,3,&] .= B[*,1,:]) isa Array # writes (2,) into (2,1)
     @test A[:,3,:] == transpose(B[:,1,:])
+
 
     A[:,*,1] .= [fill(i,2) for i=1:3]
     @test A[:,:,1] == [1,1] .* (1:3)'
     @test all(A[:, 1:2, 2:end] .== 0)
 
+    @test_throws DimensionMismatch (A[:,3,*] .= B[&,1,:]) # writes (1,2) into (2,)
     C = zeros(Int8, 2,4,3);
     @test_throws DimensionMismatch (A[*,:,1] .= C[*,:,1]) # wrong slice size
+    @test_throws DimensionMismatch (A[*,:,:] .= C[*,:,:])
     @test_throws DimensionMismatch (A[*,:,:] .= C[*,:,:])
 
     D = zeros(Int8, 2,5,4);
     @test_throws DimensionMismatch (A[1,*,:] .= D[2,*,:]) # wrong outer size
+
+    # https://github.com/JuliaLang/julia/issues/16606#issuecomment-522238801
+    a, b = rand(3,4), rand(3,4);
+    f(x::AbstractVector) = zero(x) .+ length(x)
+    @views b[:, *] .= f.(a[:, *])  # foreach((x,y) -> x .= f(y), eachcol(b), eachcol(a))
+    @test all(b .== 3)
+
+    @test_broken c[:, *] = f.(a[:, *]) # UndefVarError: c not defined
 
 end
 @testset "ambiguities" begin

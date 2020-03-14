@@ -21,6 +21,20 @@ Base.Generator{Base.Iterators.ProductIterator{Tuple{Base.OneTo{Int64},Base.RefVa
   Base.RefValue{Int64},Base.OneTo{Int64}}},StarSlice.var"#75#76"{Array{Int64,4}}}
 ```
 
+While dimensions marked `*` belong only to the outer container, 
+dimensions marked `&`  belong to both, surviving as trivial dimensions of the slices:
+
+```julia
+julia> ones(Int, 2,3,4)[:, &, 4]
+3-element Array{Array{Int64,2},1}:
+ [1; 1]
+ [1; 1]
+ [1; 1]
+
+julia> size(first(ans))
+(2, 1)
+```
+
 One use of this is for `mapslices`-like operations. It goes well with [LazyStack.jl](https://github.com/mcabbott/LazyStack.jl):
 
 ```julia
@@ -63,7 +77,7 @@ mat = rand(1:99, 3, 4)
 
 s1 = sum(along(mat, &, :)) # lazy mapreduce along "&" directions
 sum(mat, dims=1) .== s1    # all equal
-sum(mat[*, :]) == sum.(mat[:, *]) == vec(copy(s1))
+sum(mat[&, :]) == sum.(mat[:, &]) == copy(s1)
 
 p1 = prod(along(mat, &, :)) |> copy
 prod(mat, dims=1) == p1
