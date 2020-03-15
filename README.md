@@ -22,10 +22,16 @@ Base.Generator{Base.Iterators.ProductIterator{Tuple{Base.OneTo{Int64},Base.RefVa
 ```
 
 While dimensions marked `*` belong only to the outer container, 
-dimensions marked `&`  belong to both, surviving as trivial dimensions of the slices:
+and those marked `:` belong only to the inner array,
+those marked `&` or `!` belong to both, 
+surviving as trivial dimensions of either the slices, or the container.
 
 ```julia
-julia> ones(Int, 2,3,4)[:, &, 4]
+julia> ones(Int, 2,3,4)[!, *, 4]   # with `!` in place of `:`, outer array keeps 1st dimension
+1×3 Array{Array{Int64,1},2}:
+ [1, 1]  [1, 1]  [1, 1]
+
+julia> ones(Int, 2,3,4)[:, &, 4]   # with `&` in place of `*`, inner arrays keep 2nd dimension
 3-element Array{Array{Int64,2},1}:
  [1; 1]
  [1; 1]
@@ -55,6 +61,18 @@ julia> stack(info, @view rand(10,20,30)[:,*,:])
   2   2   2   2   2   2   2   2  …   2   2   2   2   2   2   2
  10  10  10  10  10  10  10  10     10  10  10  10  10  10  10
  30  30  30  30  30  30  30  30     30  30  30  30  30  30  30
+```
+
+Another is to explore reductions...
+
+```julia
+mat = rand(1:99, 3, 4)
+
+prod.(mat[!,*]) == prod(mat, dims=1)
+prod.(mat[:,*]) == dropdims(prod(mat, dims=1), dims=1)
+
+sum(mat[:,&]) == sum(mat, dims=2) # but this won't work for prod
+sum(mat[:,*]) == dropdims(sum(mat, dims=2), dims=2)
 ```
 
 Right now the `eachslice` generator returns an `Array` not a view, and re-uses the same one. But this appears to provide few benefits. 

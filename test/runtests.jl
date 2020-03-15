@@ -4,6 +4,7 @@ using StarSlice, Test
 
     A = rand(Int8, 2,3,4)
     @test A[*,:,1] == [A[1,:,1], A[2,:,1]]
+    @test A[*,!,1] == reshape([A[1,:,1], A[2,:,1]], :,1)
     @test A[&,:,1] == [A[1:1,:,1], A[2:2,:,1]]
     @test A[*,end,:] == [A[1,3,:], A[2,3,:]]
 
@@ -16,11 +17,19 @@ using StarSlice, Test
     B[4][2] = 42
     @test A[1,2,4] == 42
 
+    @test @views A[*,:,1] == [A[1,:,1], A[2,:,1]]
+    @test @views A[*,!,1] == reshape([A[1,:,1], A[2,:,1]], :,1)
+    @test @views A[&,:,1] == [A[1:1,:,1], A[2:2,:,1]]
+    @test @views A[*,end,:] == [A[1,3,:], A[2,3,:]]
+
     @test first(eachslice(A, :,*,*)) isa Array
 
     @test_throws BoundsError A[*,:]
     @test_throws BoundsError A[*,:,10]
     @test_throws BoundsError A[1:10,*,:]
+    @test_throws BoundsError @view A[*,:]
+    @test_throws BoundsError @view A[*,:,10]
+    @test_throws BoundsError @view A[1:10,*,:]
 
 end
 @testset "dotview" begin
@@ -32,10 +41,11 @@ end
     @test (A[:,3,&] .= B[*,1,:]) isa Array # writes (2,) into (2,1)
     @test A[:,3,:] == transpose(B[:,1,:])
 
-
     A[:,*,1] .= [fill(i,2) for i=1:3]
     @test A[:,:,1] == [1,1] .* (1:3)'
     @test all(A[:, 1:2, 2:end] .== 0)
+
+    @test_throws ArgumentError (A[:,3,*] = B[*,1,:]) # = not .=
 
     @test_throws DimensionMismatch (A[:,3,*] .= B[&,1,:]) # writes (1,2) into (2,)
     C = zeros(Int8, 2,4,3);
@@ -53,6 +63,28 @@ end
     @test all(b .== 3)
 
     @test_broken c[:, *] = f.(a[:, *]) # UndefVarError: c not defined
+
+end
+@testset "reduction" begin
+
+    A = rand(1:99, 2,3,4)
+
+    @test sum.(A[&,!,2]) == sum(A[:,:,2], dims=2)
+    @test sum.(A[*,:,2]) == vec(sum(A[:,:,2], dims=2))
+
+    @test @views sum.(A[&,!,2]) == sum(A[:,:,2], dims=2)
+    @test @views sum.(A[*,:,2]) == vec(sum(A[:,:,2], dims=2))
+
+end
+@testset "inference" begin
+
+    A = rand(1:99, 2,3,4)
+
+    @test (@inferred A[*,:,2]; true)
+    @test (@inferred view(A,*,:,2); true)
+    @test (@inferred first(view(A,*,:,2)); true)
+    @test (@inferred eachslice(A,*,:,2); true)
+    @test (@inferred first(eachslice(A,*,:,2)); true)
 
 end
 @testset "ambiguities" begin
