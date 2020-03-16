@@ -80,6 +80,11 @@ end
 
     A = rand(1:99, 2,3,4)
 
+    @test eltype(A[*,:,2]) == typeof(first(A[*,:,2]))
+    @test eltype(A[&,!,2]) == typeof(first(A[&,!,2]))
+    @test eltype(@view A[*,:,2]) == typeof(first(@view A[*,:,2]))
+    @test eltype(@view A[&,!,2]) == typeof(first(@view A[&,!,2]))
+
     @test (@inferred A[*,:,2]; true)
     @test (@inferred view(A,*,:,2); true)
     @test (@inferred first(view(A,*,:,2)); true)

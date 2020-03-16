@@ -19,7 +19,7 @@ dodgy = stack(map(identity, eachslice(Z, :,*,1)))
 dodgy.slices[1][1] = 99
 dodgy
 
-#====== REPL =====#
+#====== mapslices, REPL =====#
 # An entirely trivial example:
 
 julia> A = rand(10,10,10);
@@ -123,7 +123,20 @@ julia> @btime map(g3, eachslice($B2, *,:,:));
 
 # Even here, the speed gain from re-using slice is minimal.
 
-# ================
+#====== reduction, REPL =====#
+
+julia> A = rand(10,10,10);
+
+julia> @btime sum($A, dims=(1,3));
+  1.022 μs (6 allocations: 352 bytes)
+
+julia> @btime sum.($A[!,*,!]);
+  1.765 μs (17 allocations: 9.16 KiB)
+
+julia> @btime sum.(@view $A[!,*,!]);
+  2.804 μs (17 allocations: 1.03 KiB)
+
+#====== umm =====#
 
 
 parent_type(A) = typeof(parent(A))

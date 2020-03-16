@@ -12,7 +12,7 @@ julia> ones(Int, 2,3,4)[:, *, 4]
  [1, 1]
 
 julia> @view ones(Int, 2,3)[*, :]
-2-element Array{SubArray{Int64,1,Array{Int64,2},Tuple{Int64,Base.Slice{Base.OneTo{Int64}}},true},1}:
+2-element star_views(::Array{Int64,2}, (*, :)):
  [1, 1, 1]
  [1, 1, 1]
 
