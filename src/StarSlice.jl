@@ -121,9 +121,71 @@ end
 
 #===== views =====#
 
+#=
 function star_views(A::AbstractArray, code::Tuple)
     iter = make_iter(A, code)
     [ @inbounds view(A, i...) for i in iter ]
+end
+=#
+# The reason to make a special struct is to allow reduction to act directly on the array
+
+struct Sliced{T,N,PT,XT,CT} <: AbstractArray{T,N}
+    data::PT
+    axes::XT
+    code::CT
+end
+
+function star_views(A::AbstractArray, code::Tuple)
+    # outer axes:
+    list_plus = ntuple(length(code)) do d
+        x = code[d]
+        (x==*)|(x==&) ? axes(A,d) :
+        (x==!) ? Base.OneTo(1) :
+        nothing
+    end
+    list = filter(!isnothing, list_plus)
+
+    # element type
+    d = 0
+    ind = map(code) do x
+        (x==*) ? first(list[d+=1]) :
+        (x==&) ? (o = first(list[d+=1]); o:o) :
+        (x==!) ? (:) :
+        x
+    end
+    T = typeof(view(A, ind...))
+
+    # tup = map(code) do x
+    #     (x==*) ? Int :
+    #     (x==&) ? (o = first(list[d+=1]); typeof(o:o)) :
+    #     (x==!) ? Base.Slice{Base.OneTo{Int}} :
+    #     typeof(x)
+    # end
+    # T = SubArray{eltype(A), count(!=(Int), tup), typeof(A), Tuple{tup...}, true}
+
+    Sliced{T,length(list),typeof(A),typeof(list),typeof(code)}(A, list, code)
+end
+
+Base.size(S::Sliced) = map(length, S.axes)
+Base.axes(S::Sliced) = S.axes
+Base.parent(S::Sliced) = S.data
+
+function Base.getindex(S::Sliced{T,N}, out_ind::Vararg{Integer,N}) where {T,N}
+    d = 0
+    ind = map(S.code) do x
+        (x==*) ? out_ind[d+=1] :
+        (x==&) ? (o = out_ind[d+=1]; o:o) :
+        (x==!) ? (:) :
+        x
+    end
+    view(S.data, ind...)
+end
+
+function Base.summary(io::IO, S::Sliced)
+    print(io, Base.dims2string(size(S)), " star_views(")
+    Base.showarg(io, parent(S), false)
+    str = replace(join(string.(S.code), ", "), "Colon()" => ":")
+    print(io, ", (", str, "))")
 end
 
 #===== eachslice -> generator =====#
@@ -182,6 +244,30 @@ end
 
 function star_adjoint(f::Function, A::AbstractArray, code::Tuple)
     f(A, code), Δ -> (nothing, zero(A)[code...] .= Δ, map(_->nothing, code)...)
+end
+
+#===== reduction =====#
+
+function Broadcast.broadcasted(::typeof(sum), S::Sliced)::Array
+    needview = false
+    viewind = map(S.code) do x
+        (x==*)|(x==&)|(x==:)|(x==!) && return (:)
+        needview = true
+        return x
+    end
+    array = needview ? view(S.data, viewind...) : S.data
+
+    rdims = filter(!isnothing, ntuple(length(S.code)) do d
+        x = S.code[d]
+        (x==:)|(x==!) ? d : nothing
+    end)
+    reduced = length(rdims)>0 ? sum(array; dims=rdims) : array
+
+    ddims = filter(!isnothing, ntuple(length(S.code)) do d
+        x = S.code[d]
+        (x==:) ? d : nothing
+    end)
+    out = length(ddims)>0 ? dropdims(reduced; dims=ddims) : reduced
 end
 
 end # module
